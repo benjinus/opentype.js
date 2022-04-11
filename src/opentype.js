@@ -57,6 +57,7 @@ function loadFromFile(path, callback) {
         callback(null, nodeBufferToArrayBuffer(buffer));
     });
 }
+
 /**
  * Loads a font from a URL. The callback throws an error message as the first parameter if it fails
  * and the font as an ArrayBuffer in the second parameter if it succeeds.
@@ -75,7 +76,7 @@ function loadFromUrl(url, callback) {
         }
     };
 
-    request.onerror = function () {
+    request.onerror = function() {
         callback('Font could not be loaded');
     };
 
@@ -97,7 +98,7 @@ function parseOpenTypeTableEntries(data, numTables) {
         const checksum = parse.getULong(data, p + 4);
         const offset = parse.getULong(data, p + 8);
         const length = parse.getULong(data, p + 12);
-        tableEntries.push({tag: tag, checksum: checksum, offset: offset, length: length, compression: false});
+        tableEntries.push({ tag: tag, checksum: checksum, offset: offset, length: length, compression: false });
         p += 16;
     }
 
@@ -125,8 +126,10 @@ function parseWOFFTableEntries(data, numTables) {
             compression = false;
         }
 
-        tableEntries.push({tag: tag, offset: offset, compression: compression,
-            compressedLength: compLength, length: origLength});
+        tableEntries.push({
+            tag: tag, offset: offset, compression: compression,
+            compressedLength: compLength, length: origLength
+        });
         p += 20;
     }
 
@@ -155,9 +158,9 @@ function uncompressTable(data, tableEntry) {
         }
 
         const view = new DataView(outBuffer.buffer, 0);
-        return {data: view, offset: 0};
+        return { data: view, offset: 0 };
     } else {
-        return {data: data, offset: tableEntry.offset};
+        return { data: data, offset: tableEntry.offset };
     }
 }
 
@@ -171,14 +174,14 @@ function uncompressTable(data, tableEntry) {
  * @return {opentype.Font}
  */
 function parseBuffer(buffer, opt) {
-    opt = (opt === undefined || opt === null) ?  {} : opt;
+    opt = (opt === undefined || opt === null) ? {} : opt;
 
     let indexToLocFormat;
     let ltagTable;
 
     // Since the constructor can also be called to create new fonts from scratch, we indicate this
     // should be an empty font that we'll fill with our own data.
-    const font = new Font({empty: true});
+    const font = new Font({ empty: true });
 
     // OpenType fonts use big endian byte ordering.
     // We can't rely on typed array view types, because they operate with the endianness of the host computer.
@@ -323,9 +326,11 @@ function parseBuffer(buffer, opt) {
         }
     }
 
-    const nameTable = uncompressTable(data, nameTableEntry);
-    font.tables.name = _name.parse(nameTable.data, nameTable.offset, ltagTable);
-    font.names = font.tables.name;
+    if (nameTableEntry) {
+        const nameTable = uncompressTable(data, nameTableEntry);
+        font.tables.name = _name.parse(nameTable.data, nameTable.offset, ltagTable);
+        font.names = font.tables.name;
+    }
 
     if (glyfTableEntry && locaTableEntry) {
         const shortVersion = indexToLocFormat === 0;
@@ -343,6 +348,14 @@ function parseBuffer(buffer, opt) {
     const hmtxTable = uncompressTable(data, hmtxTableEntry);
     hmtx.parse(font, hmtxTable.data, hmtxTable.offset, font.numberOfHMetrics, font.numGlyphs, font.glyphs, opt);
     addGlyphNames(font, opt);
+
+    const glyphsSet = font.glyphs;
+    for (let i = 0; i < glyphsSet.length; i++) {
+        const glyph = glyphsSet.get(i);
+        if (glyph && glyph.path && glyph.path.commands && glyph.path.commands.length) {
+            console.log('glyph-' + i, glyph);
+        }
+    }
 
     if (kernTableEntry) {
         const kernTable = uncompressTable(data, kernTableEntry);
@@ -392,7 +405,7 @@ function parseBuffer(buffer, opt) {
  * @param  {Function} callback - The callback.
  */
 function load(url, callback, opt) {
-    opt = (opt === undefined || opt === null) ?  {} : opt;
+    opt = (opt === undefined || opt === null) ? {} : opt;
     const isNode = typeof window === 'undefined';
     const loadFn = isNode && !opt.isUrl ? loadFromFile : loadFromUrl;
 

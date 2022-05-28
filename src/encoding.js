@@ -245,17 +245,14 @@ GlyphNames.prototype.glyphIndexToName = function(gid) {
 
 function addGlyphNamesAll(font) {
     let glyph;
+    const glyphIndexMap = font.tables.cmap.glyphIndexMap;
+    const charCodes = Object.keys(glyphIndexMap);
 
-    if (font.tables.cmap) {
-        const glyphIndexMap = font.tables.cmap.glyphIndexMap;
-        const charCodes = Object.keys(glyphIndexMap);
-
-        for (let i = 0; i < charCodes.length; i += 1) {
-            const c = charCodes[i];
-            const glyphIndex = glyphIndexMap[c];
-            glyph = font.glyphs.get(glyphIndex);
-            glyph.addUnicode(parseInt(c));
-        }
+    for (let i = 0; i < charCodes.length; i += 1) {
+        const c = charCodes[i];
+        const glyphIndex = glyphIndexMap[c];
+        glyph = font.glyphs.get(glyphIndex);
+        glyph.addUnicode(parseInt(c));
     }
 
     for (let i = 0; i < font.glyphs.length; i += 1) {
@@ -266,7 +263,7 @@ function addGlyphNamesAll(font) {
             } else {
                 glyph.name = font.cffEncoding.charset[i];
             }
-        } else if (font.glyphNames && font.glyphNames.names) {
+        } else if (font.glyphNames.names) {
             glyph.name = font.glyphNames.glyphIndexToName(i);
         }
     }

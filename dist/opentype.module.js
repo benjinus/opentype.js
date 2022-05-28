@@ -3260,17 +3260,14 @@ GlyphNames.prototype.glyphIndexToName = function(gid) {
 
 function addGlyphNamesAll(font) {
     var glyph;
+    var glyphIndexMap = font.tables.cmap.glyphIndexMap;
+    var charCodes = Object.keys(glyphIndexMap);
 
-    if (font.tables.cmap) {
-        var glyphIndexMap = font.tables.cmap.glyphIndexMap;
-        var charCodes = Object.keys(glyphIndexMap);
-
-        for (var i = 0; i < charCodes.length; i += 1) {
-            var c = charCodes[i];
-            var glyphIndex = glyphIndexMap[c];
-            glyph = font.glyphs.get(glyphIndex);
-            glyph.addUnicode(parseInt(c));
-        }
+    for (var i = 0; i < charCodes.length; i += 1) {
+        var c = charCodes[i];
+        var glyphIndex = glyphIndexMap[c];
+        glyph = font.glyphs.get(glyphIndex);
+        glyph.addUnicode(parseInt(c));
     }
 
     for (var i$1 = 0; i$1 < font.glyphs.length; i$1 += 1) {
@@ -3281,7 +3278,7 @@ function addGlyphNamesAll(font) {
             } else {
                 glyph.name = font.cffEncoding.charset[i$1];
             }
-        } else if (font.glyphNames && font.glyphNames.names) {
+        } else if (font.glyphNames.names) {
             glyph.name = font.glyphNames.glyphIndexToName(i$1);
         }
     }
@@ -6985,40 +6982,42 @@ var colr = { parse: parseColrTable, make: makeColrTable };
 
 // Parse the header `head` table
 function parseCpalTable(data, start) {
-  var p = new Parser(data, start);
-  var version = p.parseShort();
-  var numPaletteEntries = p.parseShort();
-  var numPalettes = p.parseShort();
-  var numColorRecords = p.parseShort();
-  var colorRecordsArrayOffset = p.parseOffset32();
-  var colorRecordIndices = p.parseUShortList(numPalettes);
-  p.relativeOffset = colorRecordsArrayOffset;
-  var colorRecords = p.parseULongList(numColorRecords);
-  return {
-    version: version,
-    numPaletteEntries: numPaletteEntries,
-    colorRecords: colorRecords,
-    colorRecordIndices: colorRecordIndices,
-  };
+    var p = new Parser(data, start);
+    var version = p.parseShort();
+    var numPaletteEntries = p.parseShort();
+    var numPalettes = p.parseShort();
+    var numColorRecords = p.parseShort();
+    var colorRecordsArrayOffset = p.parseOffset32();
+    var colorRecordIndices = p.parseUShortList(numPalettes);
+    p.relativeOffset = colorRecordsArrayOffset;
+    var colorRecords = p.parseULongList(numColorRecords);
+    return {
+        version: version,
+        numPaletteEntries: numPaletteEntries,
+        colorRecords: colorRecords,
+        colorRecordIndices: colorRecordIndices,
+    };
 }
 
 function makeCpalTable(ref) {
-  var version = ref.version; if ( version === void 0 ) version = 0;
-  var numPaletteEntries = ref.numPaletteEntries; if ( numPaletteEntries === void 0 ) numPaletteEntries = 0;
-  var colorRecords = ref.colorRecords; if ( colorRecords === void 0 ) colorRecords = [];
-  var colorRecordIndices = ref.colorRecordIndices; if ( colorRecordIndices === void 0 ) colorRecordIndices = [0];
+    var version = ref.version; if ( version === void 0 ) version = 0;
+    var numPaletteEntries = ref.numPaletteEntries; if ( numPaletteEntries === void 0 ) numPaletteEntries = 0;
+    var colorRecords = ref.colorRecords; if ( colorRecords === void 0 ) colorRecords = [];
+    var colorRecordIndices = ref.colorRecordIndices; if ( colorRecordIndices === void 0 ) colorRecordIndices = [0];
 
-  check.argument(version === 0, 'Only CPALv0 are supported.');
-  check.argument(colorRecords.length, 'No colorRecords given.');
-  check.argument(colorRecordIndices.length, 'No colorRecordIndices given.');
-  check.argument(!numPaletteEntries && colorRecordIndices.length == 1, 'Can\'t infer numPaletteEntries on multiple colorRecordIndices');
-  return new table.Table('CPAL', [
-    { name: 'version', type: 'USHORT', value: version },
-    { name: 'numPaletteEntries', type: 'USHORT', value: numPaletteEntries || colorRecords.length },
-    { name: 'numPalettes', type: 'USHORT', value: colorRecordIndices.length },
-    { name: 'numColorRecords', type: 'USHORT', value: colorRecords.length },
-    { name: 'colorRecordsArrayOffset', type: 'ULONG', value: 12 + 2 * colorRecordIndices.length } ].concat( colorRecordIndices.map(function (palette, i) { return ({ name: 'colorRecordIndices_' + i, type: 'USHORT', value: palette }); }),
-    colorRecords.map(function (color, i) { return ({ name: 'colorRecords_' + i, type: 'ULONG', value: color }); }) ));
+    check.argument(version === 0, 'Only CPALv0 are supported.');
+    check.argument(colorRecords.length, 'No colorRecords given.');
+    check.argument(colorRecordIndices.length, 'No colorRecordIndices given.');
+    if (colorRecordIndices.length > 1) {
+        check.argument(numPaletteEntries, 'Can\'t infer numPaletteEntries on multiple colorRecordIndices');
+    }
+    return new table.Table('CPAL', [
+        { name: 'version', type: 'USHORT', value: version },
+        { name: 'numPaletteEntries', type: 'USHORT', value: numPaletteEntries || colorRecords.length },
+        { name: 'numPalettes', type: 'USHORT', value: colorRecordIndices.length },
+        { name: 'numColorRecords', type: 'USHORT', value: colorRecords.length },
+        { name: 'colorRecordsArrayOffset', type: 'ULONG', value: 12 + 2 * colorRecordIndices.length } ].concat( colorRecordIndices.map(function (palette, i) { return ({ name: 'colorRecordIndices_' + i, type: 'USHORT', value: palette }); }),
+        colorRecords.map(function (color, i) { return ({ name: 'colorRecords_' + i, type: 'ULONG', value: color }); }) ));
 }
 
 var cpal = { parse: parseCpalTable, make: makeCpalTable };
@@ -14174,7 +14173,6 @@ function loadFromFile(path, callback) {
         callback(null, nodeBufferToArrayBuffer(buffer));
     });
 }
-
 /**
  * Loads a font from a URL. The callback throws an error message as the first parameter if it fails
  * and the font as an ArrayBuffer in the second parameter if it succeeds.
@@ -14193,7 +14191,7 @@ function loadFromUrl(url, callback) {
         }
     };
 
-    request.onerror = function() {
+    request.onerror = function () {
         callback('Font could not be loaded');
     };
 
@@ -14215,7 +14213,7 @@ function parseOpenTypeTableEntries(data, numTables) {
         var checksum = parse.getULong(data, p + 4);
         var offset = parse.getULong(data, p + 8);
         var length = parse.getULong(data, p + 12);
-        tableEntries.push({ tag: tag, checksum: checksum, offset: offset, length: length, compression: false });
+        tableEntries.push({tag: tag, checksum: checksum, offset: offset, length: length, compression: false});
         p += 16;
     }
 
@@ -14243,10 +14241,8 @@ function parseWOFFTableEntries(data, numTables) {
             compression = false;
         }
 
-        tableEntries.push({
-            tag: tag, offset: offset, compression: compression,
-            compressedLength: compLength, length: origLength
-        });
+        tableEntries.push({tag: tag, offset: offset, compression: compression,
+            compressedLength: compLength, length: origLength});
         p += 20;
     }
 
@@ -14275,9 +14271,9 @@ function uncompressTable(data, tableEntry) {
         }
 
         var view = new DataView(outBuffer.buffer, 0);
-        return { data: view, offset: 0 };
+        return {data: view, offset: 0};
     } else {
-        return { data: data, offset: tableEntry.offset };
+        return {data: data, offset: tableEntry.offset};
     }
 }
 
@@ -14291,14 +14287,14 @@ function uncompressTable(data, tableEntry) {
  * @return {opentype.Font}
  */
 function parseBuffer(buffer, opt) {
-    opt = (opt === undefined || opt === null) ? {} : opt;
+    opt = (opt === undefined || opt === null) ?  {} : opt;
 
     var indexToLocFormat;
     var ltagTable;
 
     // Since the constructor can also be called to create new fonts from scratch, we indicate this
     // should be an empty font that we'll fill with our own data.
-    var font = new Font({ empty: true });
+    var font = new Font({empty: true});
 
     // OpenType fonts use big endian byte ordering.
     // We can't rely on typed array view types, because they operate with the endianness of the host computer.
@@ -14443,11 +14439,9 @@ function parseBuffer(buffer, opt) {
         }
     }
 
-    if (nameTableEntry) {
-        var nameTable = uncompressTable(data, nameTableEntry);
-        font.tables.name = _name.parse(nameTable.data, nameTable.offset, ltagTable);
-        font.names = font.tables.name;
-    }
+    var nameTable = uncompressTable(data, nameTableEntry);
+    font.tables.name = _name.parse(nameTable.data, nameTable.offset, ltagTable);
+    font.names = font.tables.name;
 
     if (glyfTableEntry && locaTableEntry) {
         var shortVersion = indexToLocFormat === 0;
@@ -14465,14 +14459,6 @@ function parseBuffer(buffer, opt) {
     var hmtxTable = uncompressTable(data, hmtxTableEntry);
     hmtx.parse(font, hmtxTable.data, hmtxTable.offset, font.numberOfHMetrics, font.numGlyphs, font.glyphs, opt);
     addGlyphNames(font, opt);
-
-    var glyphsSet = font.glyphs;
-    for (var i$1 = 0; i$1 < glyphsSet.length; i$1++) {
-        var glyph = glyphsSet.get(i$1);
-        if (glyph && glyph.path && glyph.path.commands && glyph.path.commands.length) {
-            console.log('glyph-' + i$1, glyph);
-        }
-    }
 
     if (kernTableEntry) {
         var kernTable = uncompressTable(data, kernTableEntry);
@@ -14522,7 +14508,7 @@ function parseBuffer(buffer, opt) {
  * @param  {Function} callback - The callback.
  */
 function load(url, callback, opt) {
-    opt = (opt === undefined || opt === null) ? {} : opt;
+    opt = (opt === undefined || opt === null) ?  {} : opt;
     var isNode = typeof window === 'undefined';
     var loadFn = isNode && !opt.isUrl ? loadFromFile : loadFromUrl;
 
